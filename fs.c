@@ -20,7 +20,6 @@ static struct dentry *dentry = NULL;
 
 ssize_t read_db_ouichefs(struct file* file,char* buffer,size_t size,loff_t* offset)
 {
-
 	struct inode *inode_partition;
 	struct inode *first_inode;
 	struct ouichefs_inode_info *ci;
