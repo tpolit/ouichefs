@@ -153,7 +153,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	struct ouichefs_inode_info *ci;
 	struct super_block *sb;
 	struct ouichefs_file_index_block *index;
-	struct buffer_head* bh;
+	struct buffer_head *bh;
 	struct ouichefs_sb_info *sbi;
 	uint32_t ino, bno;
 	int ret;
@@ -188,8 +188,8 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		goto put_inode;
 	}
 	ci->index_block = bno;
-	bh=sb_bread(sb,bno);
-	index=(struct ouichefs_file_index_block *)bh->b_data;
+	bh = sb_bread(sb,bno);
+	index = (struct ouichefs_file_index_block *)bh->b_data;
 
 	/* Initialize inode */
 	inode_init_owner(inode, dir, mode);
@@ -266,8 +266,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	 * Scrub index_block for new file/directory to avoid previous data
 	 * messing with new file/directory.
 	 */
-	ci= OUICHEFS_INODE(inode);
-	pr_info("Nouveau fichier crée son index bloc est %d mon inode number est %lu\n ",ci->index_block,inode->i_ino);
+	ci = OUICHEFS_INODE(inode);
+	pr_info("Nouveau fichier créé son index bloc est %d mon inode number est %lu\n ", ci->index_block, inode->i_ino);
 
 	bh2 = sb_bread(sb, ci->index_block);
 
@@ -277,9 +277,9 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	}
 	fblock = (char *)bh2->b_data;
 	memset(fblock, 0, OUICHEFS_BLOCK_SIZE);
-	index=(struct ouichefs_file_index_block*)bh2->b_data;
-	index->suiv=-1;
-	index->prev=-1;
+	index = (struct ouichefs_file_index_block*)bh2->b_data;
+	index->suiv = -1;
+	index->prev = -1;
 	mark_buffer_dirty(bh2);
 	brelse(bh2);
 
