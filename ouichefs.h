@@ -8,6 +8,8 @@
 #define _OUICHEFS_H
 
 #include <linux/fs.h>
+#include <linux/types.h>
+#include <linux/list.h>
 
 #define OUICHEFS_MAGIC  0x48434957
 
@@ -15,6 +17,7 @@
 
 #define OUICHEFS_BLOCK_SIZE       (1 << 12)  /* 4 KiB */
 #define OUICHEFS_MAX_FILESIZE     (1 << 22)  /* 4 MiB */
+#define OUICHEFS_INDEX 				((OUICHEFS_BLOCK_SIZE>>2) -4)
 #define OUICHEFS_FILENAME_LEN            28
 #define OUICHEFS_MAX_SUBFILES           128
 
@@ -53,6 +56,7 @@ struct ouichefs_inode {
 struct ouichefs_inode_info {
 	uint32_t index_block;
 	struct inode vfs_inode;
+
 };
 
 #define OUICHEFS_INODES_PER_BLOCK \
@@ -77,7 +81,8 @@ struct ouichefs_sb_info {
 };
 
 struct ouichefs_file_index_block {
-	uint32_t blocks[OUICHEFS_BLOCK_SIZE >> 2];
+		uint32_t blocks[OUICHEFS_INDEX];
+ 		uint32_t suiv,prev;
 };
 
 struct ouichefs_dir_block {
@@ -86,6 +91,9 @@ struct ouichefs_dir_block {
 		char filename[OUICHEFS_FILENAME_LEN];
 	} files[OUICHEFS_MAX_SUBFILES];
 };
+
+
+
 
 /* superblock functions */
 int ouichefs_fill_super(struct super_block *sb, void *data, int silent);
@@ -100,9 +108,12 @@ extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
 
-/* Getters for superbock and inode */
+/* Getters for superblock and inode */
 #define OUICHEFS_SB(sb) (sb->s_fs_info)
 #define OUICHEFS_INODE(inode) (container_of(inode, struct ouichefs_inode_info, \
 					    vfs_inode))
+
+#define OUICHEFS_INDEX_BLOCK(version)(container_of(version,struct ouichefs_file_index_bloc, \
+						version))
 
 #endif	/* _OUICHEFS_H */

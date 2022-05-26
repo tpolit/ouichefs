@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <linux/list.h>
 
 #include "ouichefs.h"
 #include "bitmap.h"
@@ -71,6 +72,7 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	set_nlink(inode, le32_to_cpu(cinode->i_nlink));
 
 	ci->index_block = le32_to_cpu(cinode->index_block);
+
 
 	if (S_ISDIR(inode->i_mode)) {
 		inode->i_fop = &ouichefs_dir_ops;
@@ -146,9 +148,12 @@ static struct dentry *ouichefs_lookup(struct inode *dir, struct dentry *dentry,
  */
 static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 {
+
 	struct inode *inode;
 	struct ouichefs_inode_info *ci;
 	struct super_block *sb;
+	struct ouichefs_file_index_block *index;
+	struct buffer_head* bh;
 	struct ouichefs_sb_info *sbi;
 	uint32_t ino, bno;
 	int ret;
@@ -158,7 +163,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		pr_err("File type not supported (only directory and regular files supported)\n");
 		return ERR_PTR(-EINVAL);
 	}
-
+	
 	/* Check if inodes are available */
 	sb = dir->i_sb;
 	sbi = OUICHEFS_SB(sb);
@@ -183,6 +188,8 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		goto put_inode;
 	}
 	ci->index_block = bno;
+	bh=sb_bread(sb,bno);
+	index=(struct ouichefs_file_index_block *)bh->b_data;
 
 	/* Initialize inode */
 	inode_init_owner(inode, dir, mode);
@@ -199,7 +206,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	}
 
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
-
+	brelse(bh);
 	return inode;
 
 put_inode:
@@ -223,7 +230,9 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	struct super_block *sb;
 	struct inode *inode;
 	struct ouichefs_inode_info *ci_dir;
+	struct ouichefs_inode_info *ci;
 	struct ouichefs_dir_block *dblock;
+	struct ouichefs_file_index_block *index;
 	char *fblock;
 	struct buffer_head *bh, *bh2;
 	int ret = 0, i;
@@ -257,15 +266,24 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	 * Scrub index_block for new file/directory to avoid previous data
 	 * messing with new file/directory.
 	 */
-	bh2 = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);
+	ci= OUICHEFS_INODE(inode);
+	pr_info("Nouveau fichier crée son index bloc est %d mon inode number est %lu\n ",ci->index_block,inode->i_ino);
+
+	bh2 = sb_bread(sb, ci->index_block);
+
 	if (!bh2) {
 		ret = -EIO;
 		goto iput;
 	}
 	fblock = (char *)bh2->b_data;
 	memset(fblock, 0, OUICHEFS_BLOCK_SIZE);
+	index=(struct ouichefs_file_index_block*)bh2->b_data;
+	index->suiv=-1;
+	index->prev=-1;
 	mark_buffer_dirty(bh2);
 	brelse(bh2);
+
+	
 
 	/* Find first free slot in parent index and register new inode */
 	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++)

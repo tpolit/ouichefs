@@ -42,18 +42,20 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 		return -EIO;
 	index = (struct ouichefs_file_index_block *)bh_index->b_data;
 
+
 	/*
 	 * Check if iblock is already allocated. If not and create is true,
 	 * allocate it. Else, get the physical block number.
 	 */
 	if (index->blocks[iblock] == 0) {
-		if (!create)
+			if (!create)
 			return 0;
 		bno = get_free_block(sbi);
 		if (!bno) {
 			ret = -ENOSPC;
 			goto brelse_index;
 		}
+		//On alloue le nouveau bloc depuis le disque et on l'ajoute dans la liste des blocs du fichier
 		index->blocks[iblock] = bno;
 		alloc = true;
 	} else {
@@ -98,12 +100,79 @@ static int ouichefs_write_begin(struct file *file,
 				struct page **pagep, void **fsdata)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(file->f_inode->i_sb);
+	struct buffer_head *bh_old_index;
+	struct ouichefs_inode *cinode=NULL;
+	struct buffer_head *bh_new_index;
+	struct ouichefs_file_index_block *old_index_block;
+	struct ouichefs_file_index_block *new_index_block;
+	struct inode *inode =file->f_inode;
+	struct ouichefs_inode_info * ci=OUICHEFS_INODE(inode);
+	struct buffer_head *bh_old_bloc;
+	struct buffer_head *bh;
+	int new_index;
+	int ret;
+	char *old_fblock;
+	char *new_fblock;
+	int i;
+	
+	
 	int err;
 	uint32_t nr_allocs = 0;
 
 	/* Check if the write can be completed (enough space?) */
 	if (pos + len > OUICHEFS_MAX_FILESIZE)
 		return -ENOSPC;
+
+
+	bh_old_index=sb_bread(inode->i_sb,ci->index_block);
+	old_index_block=(struct ouichefs_file_index_block*)bh_old_index->b_data;
+	
+	new_index=get_free_block(sbi);
+	bh_new_index=sb_bread(inode->i_sb,new_index);
+	new_index_block=(struct ouichefs_file_index_block*)bh_new_index->b_data;
+
+	//Allouer de nouveaux blocs de données pour l'index bloc
+	for(i=0 ; i< inode->i_blocks-1 ;i ++){
+		new_index_block->blocks[i]=get_free_block(sbi);
+	}
+
+	
+
+	for(i=0 ; i< inode->i_blocks-1;i++){
+		struct buffer_head *bh_new_bloc;
+		bh_old_bloc=sb_bread(inode->i_sb,old_index_block->blocks[i]);
+		bh_new_bloc=sb_bread(inode->i_sb,new_index_block->blocks[i]);
+		old_fblock=(char*)bh_new_bloc->b_data;
+		new_fblock=(char*)bh_old_bloc->b_data;
+		memcpy(new_fblock,old_fblock,OUICHEFS_BLOCK_SIZE);
+		mark_buffer_dirty(bh_new_bloc);
+		brelse(bh_old_bloc);
+		brelse(bh_new_bloc);
+		pr_info("Le bloc %d est DIRTY \n",new_index_block->blocks[i]);
+	}
+	new_index_block->prev=ci->index_block;
+	new_index_block->suiv=-1;
+	old_index_block->suiv=new_index;
+
+	pr_info("Je  suis le nouvel index  bloc %d mon prec est  %d \n",new_index,ci->index_block);
+	ci->index_block=new_index;
+	uint32_t inode_block = (inode->i_ino / OUICHEFS_INODES_PER_BLOCK) + 1;
+	uint32_t inode_shift = inode->i_ino % OUICHEFS_INODES_PER_BLOCK;
+
+	bh=sb_bread(inode->i_sb,inode_block);
+	if (!bh) {
+		ret = -EIO;
+		goto failed;
+	}
+	cinode = (struct ouichefs_inode *)bh->b_data;
+	cinode += inode_shift;
+	cinode->index_block= cpu_to_le32(ci->index_block);
+	brelse(bh);
+
+	
+	/**
+	 * On fait ca dans le cas ou on ecrase des données qui ne sont pas à l'offset courant
+	 */
 	nr_allocs = max(pos + len, file->f_inode->i_size) / OUICHEFS_BLOCK_SIZE;
 	if (nr_allocs > file->f_inode->i_blocks - 1)
 		nr_allocs -= file->f_inode->i_blocks - 1;
@@ -120,7 +189,13 @@ static int ouichefs_write_begin(struct file *file,
 		pr_err("%s:%d: newly allocated blocks reclaim not implemented yet\n",
 		       __func__, __LINE__);
 	}
+	brelse(bh_old_index);
+	brelse(bh_new_index);
 	return err;
+
+	failed:
+	iget_failed(inode);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -136,6 +211,12 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = file->f_inode;
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 	struct super_block *sb = inode->i_sb;
+	struct buffer_head* bh;
+	struct ouichefs_file_index_block* index_block;
+	int new_index;
+	int i;
+	struct ouichefs_sb_info* sbi=OUICHEFS_SB(sb);
+
 
 	/* Complete the write() */
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
@@ -150,6 +231,18 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		inode->i_mtime = inode->i_ctime = current_time(inode);
 		mark_inode_dirty(inode);
 
+		bh=sb_bread(sb,ci->index_block);
+		index_block=(struct ouichefs_file_index_block*)bh->b_data;
+		pr_info("L'index bloc du fichier est %d",ci->index_block);
+		pr_info("Le nombre de blocks du fichier est %d \n",inode->i_blocks);
+		pr_info("Liste des nouveaux blocs :");
+		for(i=0 ; i < inode->i_blocks-1 ;i ++){
+			pr_info("Bloc %d \n",index_block->blocks[i]);
+		}	
+	
+
+
+
 		/* If file is smaller than before, free unused blocks */
 		if (nr_blocks_old > inode->i_blocks) {
 			int i;
@@ -161,12 +254,14 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 
 			/* Read index block to remove unused blocks */
 			bh_index = sb_bread(sb, ci->index_block);
+
 			if (!bh_index) {
 				pr_err("failed truncating '%s'. we just lost %lu blocks\n",
 				       file->f_path.dentry->d_name.name,
 				       nr_blocks_old - inode->i_blocks);
 				goto end;
 			}
+
 			index = (struct ouichefs_file_index_block *)
 				bh_index->b_data;
 
@@ -175,9 +270,13 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 				put_block(OUICHEFS_SB(sb), index->blocks[i]);
 				index->blocks[i] = 0;
 			}
+			
 			mark_buffer_dirty(bh_index);
 			brelse(bh_index);
+			
 		}
+		
+
 	}
 end:
 	return ret;
