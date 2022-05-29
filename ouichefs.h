@@ -17,7 +17,7 @@
 
 #define OUICHEFS_BLOCK_SIZE       	(1 << 12)  /* 4 KiB */
 #define OUICHEFS_MAX_FILESIZE     	(1 << 22)  /* 4 MiB */
-#define OUICHEFS_INDEX 				((OUICHEFS_BLOCK_SIZE >> 2) -4)
+#define OUICHEFS_INDEX 				((OUICHEFS_BLOCK_SIZE >> 2) - 2)
 #define OUICHEFS_FILENAME_LEN            28
 #define OUICHEFS_MAX_SUBFILES           128
 
@@ -51,10 +51,12 @@ struct ouichefs_inode {
 	uint32_t i_blocks;	/* Block count */
 	uint32_t i_nlink;	/* Hard links count */
 	uint32_t index_block;	/* Block with list of blocks for this file */
+	uint32_t last_index_block; /* Block with list of blocks for the last version of this file */
 };
 
 struct ouichefs_inode_info {
 	uint32_t index_block;
+	uint32_t last_index_block; /* pour réduire le nombre de lecture de l'inode disque */
 	struct inode vfs_inode;
 
 };
@@ -82,7 +84,7 @@ struct ouichefs_sb_info {
 
 struct ouichefs_file_index_block {
 		uint32_t blocks[OUICHEFS_INDEX];
- 		uint32_t suiv, prev;
+ 		uint32_t prev;
 };
 
 struct ouichefs_dir_block {

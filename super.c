@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ouiche_fs - a simple educational filesystem for Linux
  *
@@ -85,7 +85,8 @@ static int ouichefs_write_inode(struct inode *inode,
 	disk_inode->i_blocks    = inode->i_blocks;
 	disk_inode->i_nlink     = inode->i_nlink;
 	disk_inode->index_block = ci->index_block;
-
+	/* added for etape 3 */
+	disk_inode->last_index_block = ci->last_index_block;
 	mark_buffer_dirty(bh);
 	sync_dirty_buffer(bh);
 	brelse(bh);
@@ -196,7 +197,7 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 	ret = sync_ifree(sb, wait);
 	if (ret)
 		return ret;
-        ret = sync_bfree(sb, wait);
+	ret = sync_bfree(sb, wait);
 	if (ret)
 		return ret;
 

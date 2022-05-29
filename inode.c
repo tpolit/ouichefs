@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ouiche_fs - a simple educational filesystem for Linux
  *
@@ -71,9 +71,12 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	inode->i_blocks = le32_to_cpu(cinode->i_blocks);
 	set_nlink(inode, le32_to_cpu(cinode->i_nlink));
 
+	/* etape 3 : initialisé le last_index_block */
+	cinode->last_index_block = cinode->index_block;
 	ci->index_block = le32_to_cpu(cinode->index_block);
-
-
+	/* pour réduire le nombre de lecture disque */
+	ci->last_index_block = le32_to_cpu(cinode->last_index_block);
+	/* pr_info("iget:: index = %d\n", ci->index_block); */
 	if (S_ISDIR(inode->i_mode)) {
 		inode->i_fop = &ouichefs_dir_ops;
 	} else if (S_ISREG(inode->i_mode)) {
@@ -163,7 +166,6 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		pr_err("File type not supported (only directory and regular files supported)\n");
 		return ERR_PTR(-EINVAL);
 	}
-	
 	/* Check if inodes are available */
 	sb = dir->i_sb;
 	sbi = OUICHEFS_SB(sb);
@@ -188,7 +190,9 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		goto put_inode;
 	}
 	ci->index_block = bno;
-	bh = sb_bread(sb,bno);
+	ci->last_index_block = bno;
+
+	bh = sb_bread(sb, bno);
 	index = (struct ouichefs_file_index_block *)bh->b_data;
 
 	/* Initialize inode */
@@ -267,7 +271,8 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	 * messing with new file/directory.
 	 */
 	ci = OUICHEFS_INODE(inode);
-	pr_info("Nouveau fichier créé son index bloc est %d mon inode number est %lu\n ", ci->index_block, inode->i_ino);
+	pr_info("Nouveau fichier créé son index bloc est %d mon inode number
+	 est %lu\n ", ci->index_block, inode->i_ino);
 
 	bh2 = sb_bread(sb, ci->index_block);
 
@@ -277,13 +282,10 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	}
 	fblock = (char *)bh2->b_data;
 	memset(fblock, 0, OUICHEFS_BLOCK_SIZE);
-	index = (struct ouichefs_file_index_block*)bh2->b_data;
-	index->suiv = -1;
-	index->prev = -1;
+	index = (struct ouichefs_file_index_block *)bh2->b_data;
+	index->prev = -1; /* pour étape 1 */
 	mark_buffer_dirty(bh2);
 	brelse(bh2);
-
-	
 
 	/* Find first free slot in parent index and register new inode */
 	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++)
@@ -383,7 +385,7 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 	for (i = 0; i < inode->i_blocks - 1; i++) {
 		char *block;
 
-		if(!file_block->blocks[i])
+		if (!file_block->blocks[i])
 			continue;
 
 		put_block(sbi, file_block->blocks[i]);

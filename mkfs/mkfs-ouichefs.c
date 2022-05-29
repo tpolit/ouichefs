@@ -27,18 +27,19 @@ struct ouichefs_inode {
 	uint32_t i_ctime;	  /* Inode change time */
 	uint32_t i_atime;	  /* Access time */
 	uint32_t i_mtime;	  /* Modification time */
-	uint32_t i_blocks;	  /* Block count (subdir count for directories) */
+	uint32_t i_blocks; /* Block count (subdir count for directories) */
 	uint32_t i_nlink;	  /* Hard links count */
-	uint32_t index_block;	  /* Block with list of blocks for this file */
+	uint32_t index_block; /* Block with list of blocks for this file */
 };
 
-#define OUICHEFS_INODES_PER_BLOCK (OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
+#define OUICHEFS_INODES_PER_BLOCK
+		(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
 
 struct ouichefs_superblock {
 	uint32_t magic;		  /* Magic number */
 
-	uint32_t nr_blocks;	  /* Total number of blocks (incl sb & inodes) */
-	uint32_t nr_inodes;       /* Total number of inodes */
+	uint32_t nr_blocks;	/* Total number of blocks (incl sb & inodes) */
+	uint32_t nr_inodes; /* Total number of inodes */
 
 	uint32_t nr_istore_blocks;/* Number of inode store blocks */
 	uint32_t nr_ifree_blocks; /* Number of free inodes bitmask blocks */
@@ -73,6 +74,7 @@ static inline void usage(char *appname)
 static inline uint32_t idiv_ceil(uint32_t a, uint32_t b)
 {
 	uint32_t ret = a / b;
+
 	if (a % b != 0)
 		return ret + 1;
 	return ret;
@@ -98,7 +100,8 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	nr_istore_blocks = idiv_ceil(nr_inodes, OUICHEFS_INODES_PER_BLOCK);
 	nr_ifree_blocks = idiv_ceil(nr_inodes, OUICHEFS_BLOCK_SIZE * 8);
 	nr_bfree_blocks = idiv_ceil(nr_blocks, OUICHEFS_BLOCK_SIZE * 8);
-	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks - nr_bfree_blocks;
+	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks -
+					nr_ifree_blocks - nr_bfree_blocks;
 
 	memset(sb, 0, sizeof(struct ouichefs_superblock));
 	sb->magic = htole32(OUICHEFS_MAGIC);
@@ -290,20 +293,21 @@ end:
 static int write_data_blocks(int fd, struct ouichefs_superblock *sb)
 {
 	int ret = 0;
-	/* struct ouichefs_dir_block root_block; */
-	/* struct ouichefs_file_index_block foo_block; */
-	/* char *foo; */
-	/* uint32_t first_block = le32toh(sb->nr_istore_blocks) + */
-	/* 	le32toh(sb->nr_ifree_blocks) + le32toh(sb->nr_bfree_blocks) + 3; */
+	/* struct ouichefs_dir_block root_block;
+	struct ouichefs_file_index_block foo_block;
+	char *foo;
+	uint32_t first_block = le32toh(sb->nr_istore_blocks) +
+		le32toh(sb->nr_ifree_blocks) +
+		le32toh(sb->nr_bfree_blocks) + 3;
 
-	/* foo = malloc(OUICHEFS_BLOCK_SIZE); */
-	/* if (!foo) */
-	/* 	return -1; */
-	/* memset(foo, 0, OUICHEFS_BLOCK_SIZE); */
+	foo = malloc(OUICHEFS_BLOCK_SIZE);
+	if (!foo)
+		return -1;
+	memset(foo, 0, OUICHEFS_BLOCK_SIZE);
 
-/* end: */
-/* 	free(foo); */
-
+	end:
+		free(foo);
+	*/
 	return ret;
 }
 
