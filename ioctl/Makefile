@@ -1,4 +1,4 @@
-KERNELDIR_PNL ?= /home/maigh/Studies/M1_S2/PNL/TME/kernel/build/linux-5.10.17
+KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
 obj-m += ex34.o
