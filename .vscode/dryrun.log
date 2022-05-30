@@ -1,5 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory '/home/firas/M1/PNL/Projet/ouichefs'
-make -C /home/firas/M1/PNL/pnl/linux-5.10.17 M=/home/firas/M1/PNL/Projet/ouichefs modules
-make: Leaving directory '/home/firas/M1/PNL/Projet/ouichefs'
- 
