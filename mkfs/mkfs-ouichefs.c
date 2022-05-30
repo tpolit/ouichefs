@@ -32,7 +32,7 @@ struct ouichefs_inode {
 	uint32_t index_block; /* Block with list of blocks for this file */
 };
 
-#define OUICHEFS_INODES_PER_BLOCK
+#define OUICHEFS_INODES_PER_BLOCK\
 		(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
 
 struct ouichefs_superblock {
