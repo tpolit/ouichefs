@@ -54,3 +54,5 @@ dkms.conf
 
 # Other
 *.img
+.vscode
+.DS_STORE
