@@ -271,7 +271,7 @@ static int ouichefs_create(struct inode *dir, struct dentry *dentry,
 	 * messing with new file/directory.
 	 */
 	ci = OUICHEFS_INODE(inode);
-	pr_info("Nouveau fichier créé son index bloc est %d mon inode number
+	pr_info("Nouveau fichier créé son index bloc est %d mon inode number\
 	 est %lu\n ", ci->index_block, inode->i_ino);
 
 	bh2 = sb_bread(sb, ci->index_block);

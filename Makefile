@@ -1,7 +1,7 @@
 obj-m += ouichefs.o
 ouichefs-objs := fs.o super.o inode.o file.o dir.o
 
-KERNELDIR ?= /home/maigh/Studies/M1_S2/PNL/TME/kernel/build/linux-5.10.17
+KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 IOCTL_SUB = ioctl
 MKFS_SUB = mkfs
 all:

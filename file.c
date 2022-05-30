@@ -114,7 +114,8 @@ static int ouichefs_write_begin(struct file *file,
 	int i;
 	int err;
 	uint32_t nr_allocs = 0;
-
+	
+	pr_info("***************************************\n");
 	pr_info("index = %d,last index = %d\n",
 		ci->index_block, ci->last_index_block);
 	/* added for étape 3 */
@@ -273,6 +274,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		}
 	}
 end:
+	pr_info("***************************************\n");
 	return ret;
 }
 

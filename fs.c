@@ -96,7 +96,7 @@ ssize_t read_db_ouichefs(struct file *file, __user char *buf,
 	brelse(bh_index);
 	brelse(bh);
 	pr_info("Copied to user: %s\n", buffer);
-	err = copy_to_user(buf, buffer, size_to_ret)
+	err = copy_to_user(buf, buffer, size_to_ret);
 	if (err)
 		pr_debug("Not all data were copied!\n");
 	kfree(buffer);
